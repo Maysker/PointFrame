@@ -191,6 +191,99 @@ def orient_crop_frame_to_cameras(
     return frame, {"status": status, "method": "median_camera_center_direction",
                    "camera_center_count": len(centers), "median_camera_w_score": score}
 
+def orient_crop_frame_by_geometry(
+    crop_frame: dict[str, Any],
+    xyz: np.ndarray,
+) -> tuple[dict[str, list[float]], dict[str, Any]]:
+    """Resolve W polarity when one side is clearly the denser support side."""
+    frame = validate_crop_frame(crop_frame)
+
+    points = np.asarray(xyz, dtype=np.float64)
+    points = points[np.all(np.isfinite(points), axis=1)]
+
+    if len(points) < 100:
+        return frame, {
+            "status": "unresolved",
+            "method": "support_band_density_v1",
+            "support_side": None,
+        }
+
+    uvw = xyz_to_uvw(points, frame)
+    u, v, w = uvw.T
+
+    q01, q99 = np.quantile(w, [0.01, 0.99])
+    span = float(q99 - q01)
+
+    if span <= 1e-12:
+        return frame, {
+            "status": "unresolved",
+            "method": "support_band_density_v1",
+            "support_side": None,
+        }
+
+    band = 0.12 * span
+
+    low_mask = (w >= q01) & (w <= q01 + band)
+    high_mask = (w >= q99 - band) & (w <= q99)
+
+    def side_stats(mask: np.ndarray) -> tuple[int, float]:
+        count = int(np.count_nonzero(mask))
+
+        if count < 100:
+            return count, 0.0
+
+        uu = u[mask]
+        vv = v[mask]
+
+        u0, u1 = np.quantile(uu, [0.02, 0.98])
+        v0, v1 = np.quantile(vv, [0.02, 0.98])
+
+        area = max(float(u1 - u0), 1e-12) * max(float(v1 - v0), 1e-12)
+        density = count / area
+
+        return count, density
+
+    low_count, low_density = side_stats(low_mask)
+    high_count, high_density = side_stats(high_mask)
+
+    if min(low_count, high_count) < 100:
+        return frame, {
+            "status": "unresolved",
+            "method": "support_band_density_v1",
+            "support_side": None,
+        }
+
+    threshold = 1.5
+
+    high_is_support = (
+        high_count > low_count * threshold
+        and high_density > low_density * threshold
+    )
+
+    low_is_support = (
+        low_count > high_count * threshold
+        and low_density > high_density * threshold
+    )
+
+    support_side = None
+
+    if high_is_support:
+        frame = flip_top_frame(frame)
+        support_side = "high_w"
+    elif low_is_support:
+        support_side = "low_w"
+
+    status = "resolved_geometry_support" if support_side else "unresolved"
+
+    return frame, {
+        "status": status,
+        "method": "support_band_density_v1",
+        "support_side": support_side,
+        "low_count": low_count,
+        "high_count": high_count,
+        "low_density": low_density,
+        "high_density": high_density,
+    }
 
 def estimate_crop_frame(
     xyz: np.ndarray, camera_centers: np.ndarray | None = None,
@@ -229,7 +322,12 @@ def estimate_crop_frame(
     w = np.cross(u, v)
     w /= np.linalg.norm(w)
     frame = validate_crop_frame({"origin": origin, "u": u, "v": v, "w": w})
+
     frame, orientation = orient_crop_frame_to_cameras(frame, camera_centers)
+
+    if orientation["status"] == "unresolved":
+        frame, orientation = orient_crop_frame_by_geometry(frame, finite)
+
     return (frame, orientation) if return_orientation else frame
 
 
@@ -579,9 +677,16 @@ def prepare_preview(layout: PlyLayout, workspace: Path, target_points: int = 1_5
                 and preview.stat().st_size == expected_size):
             changed = False
             orientation = metadata.get("auto_w_sign", {})
-            if ("auto_crop_frame" not in metadata or "auto_w_sign" not in metadata
-                    or (camera_centers is not None
-                        and orientation.get("status") == "resolved_camera_centers")):
+
+            if (
+                "auto_crop_frame" not in metadata
+                or "auto_w_sign" not in metadata
+                or orientation.get("method") == "deterministic_pca_axis_fallback"
+                or (
+                    camera_centers is not None
+                    and orientation.get("status") != "resolved_camera_centers"
+                )
+            ):
                 frame, orientation = estimate_crop_frame_from_preview(
                     preview, camera_centers, return_orientation=True,
                 )
