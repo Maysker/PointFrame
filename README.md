@@ -25,10 +25,15 @@ read the full source cloud.
 Preview and crop-definition files live in a workspace under
 `$XDG_DATA_HOME/pointframe/workspaces/<source-name>-<path-hash>/`, or
 `~/.local/share/pointframe/workspaces/` when `XDG_DATA_HOME` is unset.
-By default, exports live in `~/PointFrame/Exports/<source-stem>/crop_001/`,
-then `crop_002/` and so on. With `--output-dir DIR`, exports go to
-`DIR/crop_001/`, `DIR/crop_002/`, etc. Existing versions are never silently
-overwritten. The option does not move the preview workspace.
+Without `--output-dir`, clicking **Export full-resolution crop** opens a native
+Linux folder picker on the machine running PointFrame. Choose a folder once per
+session; exports then go to `<chosen-folder>/crop_001/`, `crop_002/`, and so on.
+Cancelling the picker leaves the crop unchanged and starts no export. With
+`--output-dir DIR`, exports go directly to `DIR/crop_001/`, `DIR/crop_002/`, etc.,
+without showing a folder picker. Existing versions are never silently
+overwritten. The chosen folder does not move the preview workspace, and the
+source PLY is not uploaded or copied through the browser. The folder picker
+uses the system's Zenity command.
 
 The input must be a binary little or big endian PLY with vertex properties
 `x`, `y`, `z`, `nx`, `ny`, `nz`, `red`, `green`, and `blue`.

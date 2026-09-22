@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import shutil
+import subprocess
 import threading
 import traceback
 import webbrowser
@@ -17,16 +19,38 @@ from .crop import export_inventory, export_versioned, load_definition, parse_bin
 STATIC_ROOT = Path(__file__).with_name("crop_web")
 
 
+def pick_export_directory() -> Path | None:
+    """Choose a local export folder with the Linux desktop dialog."""
+    zenity = shutil.which("zenity")
+    if zenity is None:
+        raise RuntimeError("Choosing an export folder requires Zenity; install it or use --output-dir")
+    result = subprocess.run(
+        [zenity, "--file-selection", "--directory", "--title=Choose PointFrame export folder"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode == 1:
+        return None
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Export folder picker failed")
+    selected = result.stdout.rstrip("\n")
+    if not selected:
+        return None
+    directory = Path(selected).expanduser().resolve(strict=True)
+    if not directory.is_dir():
+        raise ValueError("Select an export folder")
+    return directory
+
+
 class CropApplication:
     def __init__(self, source: Path, workspace: Path, target_points: int,
                  output_dir: Path | None = None) -> None:
         self.layout = parse_binary_ply(source)
         self.workspace = workspace.expanduser().resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
-        self.output_dir = (output_dir.expanduser().resolve() if output_dir else
-                           Path.home() / "PointFrame" / "Exports" / self.layout.path.stem)
+        self.output_dir = output_dir.expanduser().resolve() if output_dir else None
         self.target_points = target_points
         self.lock = threading.Lock()
+        self.destination_lock = threading.Lock()
         self.state: dict[str, Any] = {"phase": "preparing", "progress": 0.0, "message": "Starting preview preparation"}
         threading.Thread(target=self._prepare, daemon=True).start()
 
@@ -43,11 +67,20 @@ class CropApplication:
             with self.lock:
                 self.state = {"phase": "error", "progress": 0.0, "message": str(error), "traceback": traceback.format_exc()}
 
+    def choose_export_destination(self) -> dict[str, Any]:
+        with self.destination_lock:
+            if self.output_dir is None:
+                self.output_dir = pick_export_directory()
+            return {"selected": self.output_dir is not None,
+                    "directory": str(self.output_dir) if self.output_dir else None}
+
     def start_export(self, definition: dict[str, Any], action: str) -> None:
         definition = validate_definition(definition)
         if action not in {"new", "replace_latest"}:
             raise ValueError("Export action must explicitly be 'new' or 'replace_latest'")
         with self.lock:
+            if self.output_dir is None:
+                raise RuntimeError("Choose an export folder before exporting")
             if self.state.get("phase") == "exporting":
                 raise RuntimeError("An export is already running")
             metadata = self.state.get("metadata")
@@ -55,9 +88,10 @@ class CropApplication:
                 raise RuntimeError("Wait for preview preparation to finish")
             self.state.pop("report", None)
             self.state.update(phase="exporting", progress=0.0, message="Starting exact full-resolution export")
+            output_dir = self.output_dir
         def run() -> None:
             try:
-                report = export_versioned(self.layout, self.output_dir, definition, action,
+                report = export_versioned(self.layout, output_dir, definition, action,
                                           metadata["source_sha256"], self.update)
                 with self.lock:
                     self.state.update(phase="exported", progress=1.0, message="Export complete", report=report)
@@ -95,7 +129,8 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
                 self._file(preview, "application/octet-stream")
                 return
             if path == "/api/exports":
-                self.send_json(export_inventory(app.output_dir))
+                self.send_json(export_inventory(app.output_dir) if app.output_dir else
+                               {"versions": [], "latest": None, "legacy_export": False, "legacy_files": []})
                 return
             if path == "/api/definition":
                 definition = app.workspace / "crop_definition.json"
@@ -129,6 +164,8 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
                 if urlparse(self.path).path == "/api/definition":
                     save_definition(app.workspace / "crop_definition.json", data)
                     self.send_json({"saved": True})
+                elif urlparse(self.path).path == "/api/export-destination":
+                    self.send_json(app.choose_export_destination())
                 elif urlparse(self.path).path == "/api/export":
                     if not isinstance(data, dict) or "definition" not in data or "action" not in data:
                         raise ValueError("Export request requires definition and explicit action")
@@ -153,7 +190,7 @@ def run_crop_ui(source: Path, workspace: Path, host: str = "127.0.0.1", port: in
     print(f"Crop UI: {url}")
     print(f"Source (read-only): {app.layout.path}")
     print(f"Workspace: {app.workspace}")
-    print(f"Output directory: {app.output_dir}")
+    print(f"Output directory: {app.output_dir or 'choose on first export'}")
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
