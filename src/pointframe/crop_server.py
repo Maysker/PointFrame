@@ -10,7 +10,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 from .crop import export_inventory, export_versioned, load_definition, parse_binary_ply, prepare_preview, save_definition, validate_definition
@@ -101,7 +101,35 @@ class CropApplication:
         threading.Thread(target=run, daemon=True).start()
 
 
-def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
+class ServerSession:
+    def __init__(self, source: Path | None, workspace: Path | None, target_points: int,
+                 output_dir: Path | None, source_picker: Callable[[], Path | None] | None,
+                 workspace_for_source: Callable[[Path], Path] | None) -> None:
+        self.app = CropApplication(source, workspace, target_points, output_dir) if source and workspace else None
+        self.target_points = target_points
+        self.output_dir = output_dir
+        self.source_picker = source_picker
+        self.workspace_for_source = workspace_for_source
+        self.open_lock = threading.Lock()
+
+    def open_cloud(self) -> dict[str, bool]:
+        with self.open_lock:
+            if self.app is not None:
+                return {"opened": True}
+            if self.source_picker is None or self.workspace_for_source is None:
+                raise RuntimeError("Point cloud picker is unavailable")
+            selected = self.source_picker()
+            if selected is None:
+                return {"opened": False}
+            source = selected.expanduser().resolve(strict=True)
+            if source.suffix.lower() != ".ply":
+                raise ValueError("Select a .ply file")
+            self.app = CropApplication(source, self.workspace_for_source(source),
+                                       self.target_points, self.output_dir)
+            return {"opened": True}
+
+
+def handler_factory(session: ServerSession) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None:
             print(f"[crop-ui] {format % args}")
@@ -117,6 +145,14 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:
             path = urlparse(self.path).path
+            if path == "/":
+                page = STATIC_ROOT / ("index.html" if session.app else "start.html")
+                self._file(page, "text/html; charset=utf-8")
+                return
+            app = session.app
+            if app is None and path.startswith("/api/"):
+                self.send_json({"error": "Open a point cloud first"}, 409)
+                return
             if path == "/api/status":
                 with app.lock:
                     self.send_json(dict(app.state))
@@ -139,7 +175,7 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
                 else:
                     self.send_json({"exists": True, "definition": load_definition(definition)})
                 return
-            relative = "index.html" if path == "/" else path.lstrip("/")
+            relative = "start.html" if path == "/index.html" and app is None else path.lstrip("/")
             candidate = (STATIC_ROOT / relative).resolve()
             if STATIC_ROOT.resolve() not in candidate.parents or not candidate.is_file():
                 self.send_error(HTTPStatus.NOT_FOUND)
@@ -161,7 +197,15 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 data = json.loads(self.rfile.read(length))
-                if urlparse(self.path).path == "/api/definition":
+                path = urlparse(self.path).path
+                if path == "/api/open":
+                    self.send_json(session.open_cloud())
+                    return
+                app = session.app
+                if app is None:
+                    self.send_json({"error": "Open a point cloud first"}, 409)
+                    return
+                if path == "/api/definition":
                     save_definition(app.workspace / "crop_definition.json", data)
                     self.send_json({"saved": True})
                 elif urlparse(self.path).path == "/api/export-destination":
@@ -181,16 +225,22 @@ def handler_factory(app: CropApplication) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def run_crop_ui(source: Path, workspace: Path, host: str = "127.0.0.1", port: int = 8765,
+def run_crop_ui(source: Path | None, workspace: Path | None, host: str = "127.0.0.1", port: int = 8765,
                 target_points: int = 1_500_000, open_browser: bool = True,
-                output_dir: Path | None = None) -> None:
-    app = CropApplication(source, workspace, target_points, output_dir)
-    server = ThreadingHTTPServer((host, port), handler_factory(app))
+                output_dir: Path | None = None,
+                source_picker: Callable[[], Path | None] | None = None,
+                workspace_for_source: Callable[[Path], Path] | None = None) -> None:
+    session = ServerSession(source, workspace, target_points, output_dir,
+                            source_picker, workspace_for_source)
+    server = ThreadingHTTPServer((host, port), handler_factory(session))
     url = f"http://{host}:{server.server_address[1]}"
     print(f"Crop UI: {url}")
-    print(f"Source (read-only): {app.layout.path}")
-    print(f"Workspace: {app.workspace}")
-    print(f"Output directory: {app.output_dir or 'choose on first export'}")
+    if session.app:
+        print(f"Source (read-only): {session.app.layout.path}")
+        print(f"Workspace: {session.app.workspace}")
+        print(f"Output directory: {session.app.output_dir or 'choose on first export'}")
+    else:
+        print("PointFrame start screen: choose a local PLY file in the browser")
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

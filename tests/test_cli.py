@@ -38,46 +38,46 @@ def test_entry_point_uses_external_workspace_and_separate_output(tmp_path: Path,
     assert cli.default_workspace(source) == seen["workspace"]
 
 
-def test_no_input_uses_native_picker_and_existing_launch_flow(tmp_path: Path, monkeypatch) -> None:
-    source = tmp_path / "selected.ply"
-    write_cloud(source, [(0, 0, 0, 0, 0, 1, 1, 2, 3),
-                         (1, 0, 0, 0, 0, 1, 4, 5, 6),
-                         (0, 1, 0, 0, 0, 1, 7, 8, 9)])
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/zenity")
+def test_no_input_starts_server_without_opening_picker(monkeypatch) -> None:
     calls = []
-
-    def fake_dialog(command, **kwargs):
-        calls.append((command, kwargs))
-        return subprocess.CompletedProcess(command, 0, str(source) + "\n", "")
-
-    monkeypatch.setattr(cli.subprocess, "run", fake_dialog)
+    monkeypatch.setattr(cli, "pick_ply_file", lambda: pytest.fail("Picker opened at launch"))
     monkeypatch.setattr(cli, "run_crop_ui", lambda *args: calls.append(args))
     assert cli.main(["--no-open"]) == 0
-    command, options = calls[0]
-    assert command == ["/usr/bin/zenity", "--file-selection", "--title=Select PLY point cloud",
-                       "--file-filter=PLY files | *.ply *.PLY"]
-    assert options["capture_output"] is True
-    assert calls[1] == (source, cli.default_workspace(source), "127.0.0.1", 8765,
-                        1_500_000, False, None)
+    args = calls[0]
+    assert args[:7] == (None, None, "127.0.0.1", 8765, 1_500_000, False, None)
+    assert args[7] is cli.pick_ply_file
+    assert args[8] is cli.default_workspace
 
 
-def test_picker_cancel_exits_without_starting_server(monkeypatch) -> None:
+def test_picker_cancel_returns_none(monkeypatch) -> None:
     monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/zenity")
     monkeypatch.setattr(cli.subprocess, "run", lambda command, **kwargs:
                         subprocess.CompletedProcess(command, 1, "", ""))
-    monkeypatch.setattr(cli, "run_crop_ui", lambda *args: pytest.fail("Server started after cancel"))
-    assert cli.main([]) == 0
+    assert cli.pick_ply_file() is None
+
+
+def test_picker_uses_zenity_ply_filter(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "selected.ply"
+    source.touch()
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/zenity")
+    commands = []
+
+    def fake_dialog(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, str(source) + "\n", "")
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_dialog)
+    assert cli.pick_ply_file() == source
+    assert commands == [["/usr/bin/zenity", "--file-selection", "--title=Select PLY point cloud",
+                         "--file-filter=PLY files | *.ply *.PLY"]]
 
 
 def test_picker_rejects_non_ply_selection(monkeypatch) -> None:
     monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/zenity")
     monkeypatch.setattr(cli.subprocess, "run", lambda command, **kwargs:
                         subprocess.CompletedProcess(command, 0, "/tmp/cloud.txt\n", ""))
-    monkeypatch.setattr(cli, "run_crop_ui", lambda *args: pytest.fail("Server started for non-PLY"))
-    with pytest.raises(SystemExit) as error:
-        cli.main([])
-    assert error.value.code == 2
+    with pytest.raises(ValueError, match=".ply"):
+        cli.pick_ply_file()
 
 
 def test_application_exports_to_output_dir(tmp_path: Path, monkeypatch) -> None:

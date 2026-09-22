@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PointFrame</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#11191e;color:#edf5f6;font:16px system-ui,sans-serif}
+    main{width:min(420px,calc(100% - 48px));padding:32px;background:#1b2930;border:1px solid #435864;border-radius:8px}
+    h1{margin:0 0 12px;font-size:28px}p{line-height:1.5;color:#bcd0d7}
+    button{margin-top:12px;padding:11px 18px;background:#16755f;border:1px solid #47b99c;border-radius:4px;color:white;font:inherit;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}#message{min-height:1.5em;margin-top:16px}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>PointFrame</h1>
+    <p>Open a local PLY point cloud to inspect and crop it in your browser.</p>
+    <button id="openCloud">Open point cloud</button>
+    <p id="message" role="status" aria-live="polite"></p>
+  </main>
+  <script src="start.js"></script>
+</body>
+</html>

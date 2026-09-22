@@ -54,10 +54,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.preview_points < 1:
         parser.error("--preview-points must be positive")
     try:
-        selected = args.input if args.input is not None else pick_ply_file()
-        if selected is None:
+        if args.input is None:
+            run_crop_ui(None, None, args.host, args.port, args.preview_points,
+                        not args.no_open, args.output_dir, pick_ply_file, default_workspace)
             return 0
-        source = selected.expanduser().resolve(strict=True)
+        source = args.input.expanduser().resolve(strict=True)
         workspace = default_workspace(source)
         run_crop_ui(source, workspace, args.host, args.port, args.preview_points,
                     not args.no_open, args.output_dir)
