@@ -43,6 +43,39 @@
     if(dy!==0){const angle=dy*ORBIT_RADIANS_PER_VIEWPORT/height;result=orthonormalBasis({right:result.right,up:rotateAround(result.up,result.right,angle),depth:rotateAround(result.depth,result.right,angle)})}
     return{basis:result,target:[...state.target]};
   }
+  function precisionOrbitFromBasis(viewBasis){
+    const basis=orthonormalBasis(viewBasis);
+    const depth=basis.depth;
+    const elevation=Math.asin(Math.max(-1,Math.min(1,depth[2])));
+    const azimuth=Math.atan2(depth[0],depth[1]);
+    return{azimuth,elevation};
+  }
+
+  function precisionOrbitBasis(state){
+    const azimuth=state.azimuth;
+    const elevation=state.elevation;
+
+    const cosElevation=Math.cos(elevation);
+    const sinElevation=Math.sin(elevation);
+    const sinAzimuth=Math.sin(azimuth);
+    const cosAzimuth=Math.cos(azimuth);
+
+    const depth=[
+      sinAzimuth*cosElevation,
+      cosAzimuth*cosElevation,
+      sinElevation,
+    ];
+
+    const right=[
+      -cosAzimuth,
+      sinAzimuth,
+      0,
+    ];
+
+    const up=normalizeVector(cross(depth,right));
+
+    return orthonormalBasis({right,up,depth});
+  }
   function rollFromBasis(viewBasis){return Math.atan2(dot(viewBasis.right,WORLD_UP),dot(viewBasis.up,WORLD_UP))}
   function inspectStateFromView(viewBasis,pan,zoom,fit){
     if(!(zoom>0)||!(fit[0]>0)||!(fit[1]>0))throw Error("View scale must be positive");
@@ -65,5 +98,24 @@
     const centeredTarget=target.map((value,i)=>value+centerX*viewBasis.right[i]+centerY*viewBasis.up[i]);
     return{count,zoom,fit,center:[centerX,centerY],target:centeredTarget,pan:[-centerX*zoom*fit[0],-centerY*zoom*fit[1]],bounds:[minX,maxX,minY,maxY]};
   }
-  return{WORLD_UP,ORBIT_RADIANS_PER_VIEWPORT,MAX_TOP_TILT,FIXED_BASES,clampTopTilt,topTiltBasis,topTiltFromBasis,topTiltDrag,freeOrbitDrag,rollFromBasis,inspectStateFromView,topFrameFromView,cameraPosition,panTarget,nearestProjectedPoint,fitProjectedBounds};
+  return{
+    WORLD_UP,
+    ORBIT_RADIANS_PER_VIEWPORT,
+    MAX_TOP_TILT,
+    FIXED_BASES,
+    clampTopTilt,
+    topTiltBasis,
+    topTiltFromBasis,
+    topTiltDrag,
+    freeOrbitDrag,
+    precisionOrbitFromBasis,
+    precisionOrbitBasis,
+    rollFromBasis,
+    inspectStateFromView,
+    topFrameFromView,
+    cameraPosition,
+    panTarget,
+    nearestProjectedPoint,
+    fitProjectedBounds
+  };
 });
