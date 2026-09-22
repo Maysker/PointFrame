@@ -62,7 +62,7 @@ $("undo").onclick=()=>{hoverInsert=null;polygon.pop();updateSelection()};$("clea
 for(const id of["keep","boundary","wmin","wmax"])$(id).onchange=()=>{if(+$("wmin").value>+$("wmax").value)return;$("wminRange").value=$("wmin").value;$("wmaxRange").value=$("wmax").value;updateSelection()};
 for(const pair of[["wminRange","wmin"],["wmaxRange","wmax"]])$(pair[0]).oninput=()=>{$(pair[1]).value=$(pair[0]).value;updateSelection()};
 async function post(url,data){const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}),result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
-async function refreshExportInventory(){const response=await fetch("/api/exports"),inventory=await response.json();$("legacyExport").textContent=inventory.legacy_export?`Legacy root export preserved (${inventory.legacy_files.join(", ")}).`:"";return inventory}
+async function refreshExportInventory(){const response=await fetch("/api/exports"),inventory=await response.json();$("legacyExport").textContent=inventory.legacy_export?"Existing root export files preserved.":"";return inventory}
 async function beginExport(action){try{await post("/api/export",{action,definition:definition()});$("report").textContent="";poll()}catch(e){alert(e.message)}}
 $("save").onclick=async()=>{try{await post("/api/definition",definition());$("message").textContent="Crop definition and local frame saved."}catch(e){alert(e.message)}};
 $("load").onclick=async()=>{const response=await fetch("/api/definition");if(!response.ok)return alert("No saved crop definition exists.");applyDefinition((await response.json()).definition)};

@@ -33,7 +33,8 @@ Cancelling the picker leaves the crop unchanged and starts no export. With
 without showing a folder picker. Existing versions are never silently
 overwritten. The chosen folder does not move the preview workspace, and the
 source PLY is not uploaded or copied through the browser. The folder picker
-uses the system's Zenity command.
+uses the system's Zenity command. Each version contains `crop_raw.ply`,
+`crop_aligned.ply`, `crop_definition.json`, and `crop_report.json`.
 
 The input must be a binary little or big endian PLY with `x`, `y`, and `z`
 vertex properties. `red`, `green`, `blue`, `nx`, `ny`, and `nz` are optional.

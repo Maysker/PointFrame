@@ -100,8 +100,8 @@ def test_application_exports_to_output_dir(tmp_path: Path, monkeypatch) -> None:
     while app.state["phase"] == "exporting" and monotonic() < deadline:
         sleep(0.01)
     assert app.state["phase"] == "exported"
-    assert (app.output_dir / "crop_001" / "building_crop_raw.ply").is_file()
-    assert (app.output_dir / "crop_001" / "building_crop_aligned.ply").is_file()
+    assert (app.output_dir / "crop_001" / "crop_raw.ply").is_file()
+    assert (app.output_dir / "crop_001" / "crop_aligned.ply").is_file()
     assert not (app.workspace / "crop_001").exists()
 
 
@@ -143,7 +143,7 @@ def test_export_folder_cancel_then_choose_once(tmp_path: Path, monkeypatch) -> N
     while app.state["phase"] == "exporting" and monotonic() < deadline:
         sleep(0.01)
     assert app.state["phase"] == "exported"
-    assert (chosen / "crop_001" / "building_crop_raw.ply").is_file()
+    assert (chosen / "crop_001" / "crop_raw.ply").is_file()
     assert not (workspace / "crop_001").exists()
 
 

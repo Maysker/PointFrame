@@ -365,8 +365,8 @@ def export_crop(layout: PlyLayout, workspace: Path, definition: dict[str, Any], 
     definition = validate_definition(definition)
     workspace = workspace.expanduser().resolve()
     workspace.mkdir(parents=True, exist_ok=True)
-    raw_output = workspace / "building_crop_raw.ply"
-    aligned_output = workspace / "building_crop_aligned.ply"
+    raw_output = workspace / "crop_raw.ply"
+    aligned_output = workspace / "crop_aligned.ply"
     report_path = workspace / "crop_report.json"
     definition_path = workspace / "crop_definition.json"
     conflicts = [p.name for p in (raw_output, aligned_output, report_path) if p.exists()]
@@ -445,7 +445,8 @@ def export_crop(layout: PlyLayout, workspace: Path, definition: dict[str, Any], 
 
 
 EXPORT_DIRECTORY_PATTERN = re.compile(r"crop_(\d+)$")
-LEGACY_EXPORT_FILES = ("building_crop_raw.ply", "building_crop_aligned.ply",
+LEGACY_EXPORT_FILES = ("crop_raw.ply", "crop_aligned.ply",
+                       "building_crop_raw.ply", "building_crop_aligned.ply",
                        "crop_definition.json", "crop_report.json")
 
 

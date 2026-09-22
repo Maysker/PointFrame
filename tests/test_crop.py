@@ -400,7 +400,7 @@ def test_full_export_preserves_properties_source_and_report(cloud: Path, tmp_pat
     assert sha256_file(cloud) == before_hash
     assert report["source_point_count"] == 5
     assert report["output_point_count"] == 3
-    output = workspace / "building_crop_raw.ply"
+    output = workspace / "crop_raw.ply"
     out_layout = parse_binary_ply(output)
     with output.open("rb") as stream:
         stream.seek(out_layout.data_offset)
@@ -424,7 +424,7 @@ def test_rotated_frame_export_preserves_original_vertex_bytes(tmp_path: Path) ->
     before = source.read_bytes()
     workspace = tmp_path / "export"
     report = export_crop(parse_binary_ply(source), workspace, definition_v2(), sha256_file(source))
-    output = workspace / "building_crop_raw.ply"
+    output = workspace / "crop_raw.ply"
     layout = parse_binary_ply(output)
     with output.open("rb") as stream:
         stream.seek(layout.data_offset)
@@ -432,7 +432,7 @@ def test_rotated_frame_export_preserves_original_vertex_bytes(tmp_path: Path) ->
     source_data = np.asarray(rows, dtype=DTYPE)
     assert retained.tobytes() == source_data[[0, 3]].tobytes()
 
-    aligned_output = workspace / "building_crop_aligned.ply"
+    aligned_output = workspace / "crop_aligned.ply"
     aligned_layout = parse_binary_ply(aligned_output)
     with aligned_output.open("rb") as stream:
         stream.seek(aligned_layout.data_offset)
@@ -471,7 +471,7 @@ def test_rotated_frame_export_preserves_original_vertex_bytes(tmp_path: Path) ->
     reloaded = load_definition(workspace / "crop_definition.json")
     second_workspace = tmp_path / "export-reloaded"
     export_crop(parse_binary_ply(source), second_workspace, reloaded, sha256_file(source))
-    assert (second_workspace / "building_crop_aligned.ply").read_bytes() == aligned_output.read_bytes()
+    assert (second_workspace / "crop_aligned.ply").read_bytes() == aligned_output.read_bytes()
     assert source.read_bytes() == before
 
 
@@ -494,7 +494,7 @@ def test_versioned_exports_increment_preserve_legacy_and_never_overwrite(cloud: 
     assert first["export_version"] == "crop_001"
     assert first["export_directory"] == str(first_dir)
     assert {path.name for path in first_dir.iterdir()} == {
-        "building_crop_raw.ply", "building_crop_aligned.ply", "crop_definition.json", "crop_report.json"
+        "crop_raw.ply", "crop_aligned.ply", "crop_definition.json", "crop_report.json"
     }
     first_bytes = {path.name: path.read_bytes() for path in first_dir.iterdir()}
 
