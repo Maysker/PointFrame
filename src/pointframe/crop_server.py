@@ -225,6 +225,19 @@ def handler_factory(session: ServerSession) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+def open_desktop_window(url: str) -> bool:
+    """Show the existing localhost UI in PyWebView, if available."""
+    try:
+        import webview
+
+        webview.create_window("PointFrame", url)
+        webview.start()
+    except Exception as error:
+        print(f"PointFrame window unavailable ({error}); opening browser instead.")
+        return False
+    return True
+
+
 def run_crop_ui(source: Path | None, workspace: Path | None, host: str = "127.0.0.1", port: int = 8765,
                 target_points: int = 1_500_000, open_browser: bool = True,
                 output_dir: Path | None = None,
@@ -241,11 +254,20 @@ def run_crop_ui(source: Path | None, workspace: Path | None, host: str = "127.0.
         print(f"Output directory: {session.app.output_dir or 'choose on first export'}")
     else:
         print("PointFrame start screen: choose a local PLY file in the browser")
-    if open_browser:
-        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    server_thread: threading.Thread | None = None
     try:
-        server.serve_forever()
+        if open_browser:
+            server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+            server_thread.start()
+            if not open_desktop_window(url):
+                webbrowser.open(url)
+                server_thread.join()
+        else:
+            server.serve_forever()
     except KeyboardInterrupt:
         print("\nCrop UI stopped.")
     finally:
+        if server_thread is not None:
+            server.shutdown()
+            server_thread.join()
         server.server_close()

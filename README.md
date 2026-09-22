@@ -4,7 +4,8 @@ PointFrame is a local browser viewer for cropping a binary PLY point cloud. It
 keeps the source file unchanged and exports the selected full-resolution points
 as both raw and rigidly aligned PLY files.
 
-Install with `python -m pip install -e .` from this directory. Then run either:
+Install the optional desktop shell with `python -m pip install -e '.[desktop]'`
+from this directory. Then run either:
 
 ```sh
 pointframe
@@ -12,17 +13,20 @@ python -m pointframe /path/to/cloud.ply
 pointframe /path/to/cloud.ply
 ```
 
-With no path, PointFrame starts a local server and opens a start screen in the
-browser. Click **Open point cloud** to choose a `.ply` file with the native Linux
+With no path, PointFrame starts a local server and opens a start screen in a
+PointFrame window. Click **Open point cloud** to choose a `.ply` file with the native Linux
 picker. Cancelling returns to the start screen. The picker uses the system's
 Zenity command; if it is unavailable, pass the PLY path explicitly. The selected
-file is read locally and is not uploaded through the browser. Passing a PLY
+file is read locally and is not uploaded through the window. Passing a PLY
 path starts the viewer directly.
 
-The browser opens at `http://127.0.0.1:8765`. Use `--no-open` to suppress the
-automatic browser launch, or `--host` and `--port` to change the listening
-address. `--preview-points` controls the sampled preview size; exports always
-read the full source cloud.
+The window displays the existing localhost UI at `http://127.0.0.1:8765`.
+Closing it shuts down the local server. If PyWebView or its Linux GTK renderer
+cannot start, PointFrame opens that URL in the external browser instead. A
+plain `python -m pip install -e .` install uses this browser fallback. Use
+`--no-open` to run the server without opening a window or browser, or `--host`
+and `--port` to change the listening address. `--preview-points` controls the
+sampled preview size; exports always read the full source cloud.
 
 Preview and crop-definition files live in a workspace under
 `$XDG_DATA_HOME/pointframe/workspaces/<source-name>-<path-hash>/`, or
