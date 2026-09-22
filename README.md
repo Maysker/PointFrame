@@ -7,9 +7,15 @@ as both raw and rigidly aligned PLY files.
 Install with `python -m pip install -e .` from this directory. Then run either:
 
 ```sh
+pointframe
 python -m pointframe /path/to/cloud.ply
 pointframe /path/to/cloud.ply
 ```
+
+With no path, PointFrame opens a native Linux file picker for a `.ply` file.
+Cancelling the picker exits without starting the server. This picker uses the
+system's Zenity command; if it is unavailable, pass the PLY path explicitly.
+The selected file is read locally and is not uploaded through the browser.
 
 The browser opens at `http://127.0.0.1:8765`. Use `--no-open` to suppress the
 automatic browser launch, or `--host` and `--port` to change the listening
