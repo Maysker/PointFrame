@@ -242,6 +242,48 @@ def estimate_crop_frame_from_preview(
     xyz = np.column_stack((records["x"], records["y"], records["z"]))
     return estimate_crop_frame(xyz, camera_centers, return_orientation=return_orientation)
 
+def load_reconstruction_camera_centers(source_path: Path) -> tuple[np.ndarray | None, dict[str, Any]]:
+    """Load already-exported COLMAP centers for the selected component of a reconstruction run."""
+    source = source_path.expanduser().resolve(strict=False)
+
+    for run_root in source.parents:
+        poses_path = run_root / "diagnostics" / "camera_poses.json"
+        manifest_path = run_root / "run_manifest.json"
+
+        if not poses_path.is_file() or not manifest_path.is_file():
+            continue
+
+        poses = json.loads(poses_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        component = str(manifest.get("selected_sparse_component", ""))
+        records = poses.get("components", {}).get(component, [])
+
+        try:
+            centers = np.asarray(
+                [record.get("camera_center") for record in records],
+                dtype=np.float64,
+            )
+        except (TypeError, ValueError):
+            centers = np.empty((0, 3), dtype=np.float64)
+
+        if centers.ndim != 2 or centers.shape[1:] != (3,) or not len(centers):
+            return None, {
+                "camera_centers_file": str(poses_path),
+                "selected_component": component,
+            }
+
+        centers = centers[np.all(np.isfinite(centers), axis=1)]
+
+        return (centers if len(centers) else None), {
+            "camera_centers_file": str(poses_path),
+            "selected_component": component,
+        }
+
+    return None, {
+        "camera_centers_file": None,
+        "selected_component": None,
+    }
+
 
 def exact_w_bounds(layout: PlyLayout, crop_frame: dict[str, Any]) -> list[float]:
     frame = validate_crop_frame(crop_frame)
@@ -529,6 +571,7 @@ def prepare_preview(layout: PlyLayout, workspace: Path, target_points: int = 1_5
     preview = workspace / "preview.bin"
     metadata_path = workspace / "preview_metadata.json"
     source_hash = sha256_file(layout.path)
+    camera_centers, camera_source = load_reconstruction_camera_centers(layout.path)
     if metadata_path.exists() and preview.exists():
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         expected_size = metadata.get("preview_point_count", -1) * 15
@@ -537,10 +580,12 @@ def prepare_preview(layout: PlyLayout, workspace: Path, target_points: int = 1_5
             changed = False
             orientation = metadata.get("auto_w_sign", {})
             if ("auto_crop_frame" not in metadata or "auto_w_sign" not in metadata
-                    or orientation.get("status") == "resolved_camera_centers"):
+                    or (camera_centers is not None
+                        and orientation.get("status") == "resolved_camera_centers")):
                 frame, orientation = estimate_crop_frame_from_preview(
-                    preview, return_orientation=True,
+                    preview, camera_centers, return_orientation=True,
                 )
+                orientation.update(camera_source)
                 metadata["auto_crop_frame"] = frame
                 metadata["auto_w_sign"] = orientation
                 metadata["auto_level_method"] = (
@@ -602,7 +647,11 @@ def prepare_preview(layout: PlyLayout, workspace: Path, target_points: int = 1_5
         "bounds": {"min": bounds_min.tolist(), "max": bounds_max.tolist()}, "created_at": datetime.now(timezone.utc).isoformat(),
         "cached": False,
     }
-    frame, orientation = estimate_crop_frame_from_preview(preview, return_orientation=True)
+    frame, orientation = estimate_crop_frame_from_preview(
+        preview, camera_centers, return_orientation=True
+    )
+    orientation.update(camera_source)
+
     metadata["auto_crop_frame"] = frame
     metadata["auto_w_sign"] = orientation
     metadata["auto_level_method"] = (
