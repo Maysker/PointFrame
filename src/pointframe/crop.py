@@ -18,7 +18,8 @@ from .ply import PLY_TYPES, read_header
 from .utils import sha256_file
 
 
-REQUIRED_PROPERTIES = ("x", "y", "z", "nx", "ny", "nz", "red", "green", "blue")
+REQUIRED_PROPERTIES = ("x", "y", "z")
+DEFAULT_PREVIEW_COLOR = 180
 NUMPY_CODES = {"b": "i1", "B": "u1", "h": "i2", "H": "u2", "i": "i4", "I": "u4", "f": "f4", "d": "f8"}
 
 
@@ -582,7 +583,8 @@ def prepare_preview(layout: PlyLayout, workspace: Path, target_points: int = 1_5
             for name in ("x", "y", "z"):
                 packed[name] = sampled[name]
             for source_name, target_name in (("red", "r"), ("green", "g"), ("blue", "b")):
-                packed[target_name] = sampled[source_name]
+                packed[target_name] = (sampled[source_name] if source_name in sampled.dtype.names
+                                       else DEFAULT_PREVIEW_COLOR)
             raw = packed.tobytes()
             target.write(raw)
             digest.update(raw)

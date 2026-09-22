@@ -35,7 +35,10 @@ overwritten. The chosen folder does not move the preview workspace, and the
 source PLY is not uploaded or copied through the browser. The folder picker
 uses the system's Zenity command.
 
-The input must be a binary little or big endian PLY with vertex properties
-`x`, `y`, `z`, `nx`, `ny`, `nz`, `red`, `green`, and `blue`.
+The input must be a binary little or big endian PLY with `x`, `y`, and `z`
+vertex properties. `red`, `green`, `blue`, `nx`, `ny`, and `nz` are optional.
+Missing colors appear as neutral gray in the preview. Raw and aligned exports
+preserve the source properties; aligned exports rotate normals when present
+and do not add normals when absent.
 
 Run the crop tests with `python -m pytest` after installing `.[test]`.
