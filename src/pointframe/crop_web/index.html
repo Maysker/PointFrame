@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PointFrame Crop</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <header><h1>Point Cloud Crop</h1><div id="status">Connecting…</div></header>
+  <main>
+    <section class="viewer">
+      <canvas id="gl"></canvas><canvas id="overlay"></canvas>
+      <div class="viewbar">
+        <button data-view="top">Top / Draw</button><button data-view="front">Front</button>
+        <button data-view="side">Side</button><button data-view="inspect">3D Inspect</button><button data-view="overview">Overview</button>
+        <button id="fitView">Fit view</button><button id="flipTop" class="topControl">Flip Top</button>
+        <button id="rotateTop" class="topControl">Rotate Top 180°</button><button id="useView">Use current view as Top</button>
+        <label id="verticalLockControl"><input id="verticalLock" type="checkbox" checked> Lock vertical axis</label>
+      </div>
+      <div id="modeBadge">Preparing view…</div>
+      <pre id="orbitDebug" aria-live="polite"></pre>
+      <div class="hint" id="controlsHint">Top / Draw: click to add · drag yellow vertex to edit · hover then click/drag edge to insert · right-click vertex to delete</div>
+    </section>
+    <aside>
+      <section><h2>1. Building outline</h2>
+        <div class="row"><button id="undo">Undo vertex</button><button id="clear">Clear polygon</button></div>
+        <div><span id="vertexCount">0</span> vertices</div><pre id="coords">[]</pre>
+      </section>
+      <section><h2>2. Height range</h2>
+        <label>Minimum height <input id="wmin" type="number" step="any"></label><input id="wminRange" type="range" step="any">
+        <label>Maximum height <input id="wmax" type="number" step="any"></label><input id="wmaxRange" type="range" step="any">
+        <small id="wBounds"></small>
+      </section>
+      <section><h2>3. Selection</h2>
+        <label><select id="keep"><option value="inside">Keep Inside</option><option value="outside">Keep Outside</option></select></label>
+        <label><input id="boundary" type="checkbox" checked> Include boundary</label>
+        <div class="segmented"><button data-mode="all" class="active">All points</button><button data-mode="selected">Preview Selected</button><button data-mode="excluded">Excluded</button></div>
+        <dl><dt>Original points</dt><dd id="originalCount">—</dd><dt>Preview selected</dt><dd id="selectedCount">—</dd><dt>Selected</dt><dd id="percent">—</dd><dt>Outline bounds</dt><dd id="uvBounds">—</dd><dt>Height interval</dt><dd id="wInterval">—</dd></dl>
+      </section>
+      <section><h2>4. Save / export</h2>
+        <div class="row"><button id="save">Save definition</button><button id="load">Reload definition</button></div>
+        <button id="export" class="primary">Export full-resolution crop</button>
+        <div id="legacyExport" class="subtle"></div>
+        <progress id="progress" max="1" value="0"></progress><div id="message"></div>
+        <div id="report"></div>
+      </section>
+    </aside>
+  </main>
+  <dialog id="exportDialog">
+    <h2>Existing exports</h2>
+    <p id="exportDialogMessage"></p>
+    <div class="dialogActions"><button id="exportNew" class="primary">Export as new version</button><button id="exportReplace" class="danger">Replace latest export</button><button id="exportCancel">Cancel</button></div>
+  </dialog>
+  <script src="navigation.js"></script><script src="polygon.js"></script><script src="app.js"></script>
+</body></html>
