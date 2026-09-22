@@ -3,9 +3,6 @@
   const WORLD_UP=Object.freeze([0,0,1]);
   const ORBIT_RADIANS_PER_VIEWPORT=105*Math.PI/180;
   const MAX_TOP_TILT=30*Math.PI/180;
-  const MIN_OVERVIEW_ELEVATION=5*Math.PI/180;
-  const MAX_OVERVIEW_ELEVATION=85*Math.PI/180;
-  const DEFAULT_OVERVIEW_ELEVATION=45*Math.PI/180;
   const FIXED_BASES=Object.freeze({
     top:Object.freeze({right:Object.freeze([1,0,0]),up:Object.freeze([0,1,0]),depth:Object.freeze([0,0,1])}),
     front:Object.freeze({right:Object.freeze([-1,0,0]),up:Object.freeze([0,0,1]),depth:Object.freeze([0,1,0])}),
@@ -36,15 +33,6 @@
     if(width<=0||height<=0)throw Error("Top-tilt viewport must be positive");
     const tilt=clampTopTilt(state.tiltX+dx*ORBIT_RADIANS_PER_VIEWPORT/width,state.tiltY-dy*ORBIT_RADIANS_PER_VIEWPORT/height);
     return{...tilt,distance:state.distance,target:[...state.target]};
-  }
-  function clampOverviewElevation(elevation){return Math.max(MIN_OVERVIEW_ELEVATION,Math.min(MAX_OVERVIEW_ELEVATION,elevation))}
-  function overviewBasis(camera){
-    const azimuth=camera.azimuth,elevation=camera.elevation,ca=Math.cos(azimuth),sa=Math.sin(azimuth),ce=Math.cos(elevation),se=Math.sin(elevation);
-    return{right:[ca,sa,0],up:[-se*sa,se*ca,ce],depth:[ce*sa,-ce*ca,se]};
-  }
-  function overviewDrag(state,dx,dy,width,height){
-    if(width<=0||height<=0)throw Error("Overview viewport must be positive");
-    return{azimuth:state.azimuth+dx*ORBIT_RADIANS_PER_VIEWPORT/width,elevation:clampOverviewElevation(state.elevation-dy*ORBIT_RADIANS_PER_VIEWPORT/height),distance:state.distance,target:[...state.target]};
   }
   function rotateAround(vector,axis,angle){const unit=normalizeVector(axis),cosine=Math.cos(angle),sine=Math.sin(angle),projection=dot(unit,vector)*(1-cosine),perpendicular=cross(unit,vector);return vector.map((value,index)=>value*cosine+perpendicular[index]*sine+unit[index]*projection)}
   function orthonormalBasis(viewBasis){const right=normalizeVector(viewBasis.right),up0=viewBasis.up.map((value,index)=>value-dot(viewBasis.up,right)*right[index]),up=normalizeVector(up0),depth=normalizeVector(cross(right,up));return{right,up,depth}}
@@ -77,5 +65,5 @@
     const centeredTarget=target.map((value,i)=>value+centerX*viewBasis.right[i]+centerY*viewBasis.up[i]);
     return{count,zoom,fit,center:[centerX,centerY],target:centeredTarget,pan:[-centerX*zoom*fit[0],-centerY*zoom*fit[1]],bounds:[minX,maxX,minY,maxY]};
   }
-  return{WORLD_UP,ORBIT_RADIANS_PER_VIEWPORT,MAX_TOP_TILT,MIN_OVERVIEW_ELEVATION,MAX_OVERVIEW_ELEVATION,DEFAULT_OVERVIEW_ELEVATION,FIXED_BASES,clampTopTilt,topTiltBasis,topTiltFromBasis,topTiltDrag,clampOverviewElevation,overviewBasis,overviewDrag,freeOrbitDrag,rollFromBasis,inspectStateFromView,topFrameFromView,cameraPosition,panTarget,nearestProjectedPoint,fitProjectedBounds};
+  return{WORLD_UP,ORBIT_RADIANS_PER_VIEWPORT,MAX_TOP_TILT,FIXED_BASES,clampTopTilt,topTiltBasis,topTiltFromBasis,topTiltDrag,freeOrbitDrag,rollFromBasis,inspectStateFromView,topFrameFromView,cameraPosition,panTarget,nearestProjectedPoint,fitProjectedBounds};
 });

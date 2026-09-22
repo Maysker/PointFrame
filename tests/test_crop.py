@@ -146,16 +146,11 @@ const positions=new Float32Array([-0.5,0,0, 0.5,0,0]);
 const flags=new Float32Array([1,1]);
 const nearest=nav.nearestProjectedPoint(positions,flags,'all',[0,0,0],neutral,1000,500,1,[1,1],750,250);
 const free=nav.freeOrbitDrag({{basis:frontBasis,target:[1,2,3]}},130,85,1000,500);
-const overview={{azimuth:.3,elevation:nav.DEFAULT_OVERVIEW_ELEVATION,distance:3,target:[1,2,3]}};
-const overviewHorizontal=nav.overviewDrag(overview,100,0,1000,500),overviewVertical=nav.overviewDrag(overview,0,100,1000,500),overview360=nav.overviewDrag(overview,1000*360/105,0,1000,500),overviewBasis=nav.overviewBasis(overview360);
-const overviewHigh=nav.overviewDrag(overview,0,-100000,1000,500),overviewLow=nav.overviewDrag(overview,0,100000,1000,500);
-let overviewRepeated=overview;
-for(let i=0;i<12;i++)overviewRepeated=nav.overviewDrag(overviewRepeated,1000*360/105,0,1000,500);
-const overviewRepeatedBasis=nav.overviewBasis(overviewRepeated);
+const inspectFromFront=nav.inspectStateFromView(nav.FIXED_BASES.front,[.2,-.1],2,[.5,1]);
 const fitPositions=new Float32Array([-10,-1,0, 10,1,0, -2,-.5,0, 2,.5,0]),fitFlags=new Float32Array([1,1,0,0]);
 const fitAll=nav.fitProjectedBounds(fitPositions,fitFlags,'all',[0,0,0],topBasis,1000,500),fitSelected=nav.fitProjectedBounds(fitPositions,fitFlags,'selected',[0,0,0],topBasis,1000,500),fitExcluded=nav.fitProjectedBounds(fitPositions,fitFlags,'excluded',[0,0,0],topBasis,1000,500);
 const smallPositions=new Float32Array(Array.from(fitPositions,value=>value*.1)),fitSmall=nav.fitProjectedBounds(smallPositions,fitFlags,'all',[0,0,0],topBasis,1000,500);
-console.log(JSON.stringify({{neutral,neutralBasis,up,down,left,right,diagonal,returned,limited,repeated,basis,repeatedBasis,det:determinant(basis),target,panStart,panEnd,cameraStart,cameraEnd,look,topFrame,topDet,tiltedFrame,nearest,free,maxTilt:nav.MAX_TOP_TILT,overview,overviewHorizontal,overviewVertical,overview360,overviewHigh,overviewLow,overviewBasis,overviewRepeated,overviewRepeatedBasis,overviewDet:determinant(overviewBasis),fixed:nav.FIXED_BASES,fixedDets:{{front:determinant(nav.FIXED_BASES.front),side:determinant(nav.FIXED_BASES.side)}},fitAll,fitSelected,fitExcluded,fitSmall,minOverview:nav.MIN_OVERVIEW_ELEVATION,maxOverview:nav.MAX_OVERVIEW_ELEVATION}}));
+console.log(JSON.stringify({{neutral,neutralBasis,up,down,left,right,diagonal,returned,limited,repeated,basis,repeatedBasis,det:determinant(basis),target,panStart,panEnd,cameraStart,cameraEnd,look,topFrame,topDet,tiltedFrame,nearest,free,maxTilt:nav.MAX_TOP_TILT,inspectFromFront,fixed:nav.FIXED_BASES,fixedDets:{{front:determinant(nav.FIXED_BASES.front),side:determinant(nav.FIXED_BASES.side)}},fitAll,fitSelected,fitExcluded,fitSmall}}));
 """
     result = subprocess.run([node, "-e", script], text=True, capture_output=True, check=True)
     state = json.loads(result.stdout)
@@ -191,20 +186,9 @@ console.log(JSON.stringify({{neutral,neutralBasis,up,down,left,right,diagonal,re
     assert np.linalg.det(np.asarray([state["tiltedFrame"][key] for key in ("u", "v", "w")])) > 0
     assert state["nearest"] == 1
     assert state["free"]["basis"]["depth"][2] < 0
-    assert state["overviewHorizontal"]["elevation"] == pytest.approx(state["overview"]["elevation"])
-    assert state["overviewHorizontal"]["azimuth"] > state["overview"]["azimuth"]
-    assert state["overviewVertical"]["azimuth"] == pytest.approx(state["overview"]["azimuth"])
-    assert state["overviewVertical"]["elevation"] < state["overview"]["elevation"]
-    assert state["overview360"]["azimuth"] - state["overview"]["azimuth"] == pytest.approx(2 * np.pi)
-    assert state["overview360"]["elevation"] == pytest.approx(state["overview"]["elevation"])
-    assert state["overviewHigh"]["elevation"] == pytest.approx(state["maxOverview"])
-    assert state["overviewLow"]["elevation"] == pytest.approx(state["minOverview"])
-    assert state["overviewDet"] == pytest.approx(1)
-    assert state["overviewBasis"]["right"][2] == pytest.approx(0, abs=1e-12)
-    assert state["overviewBasis"]["up"][2] > 0
-    for axis in ("right", "up", "depth"):
-        assert state["overviewRepeatedBasis"][axis] == pytest.approx(state["overviewBasis"][axis], abs=1e-11)
-    assert state["overviewRepeated"]["elevation"] == pytest.approx(state["overview"]["elevation"])
+    assert state["inspectFromFront"]["target"] == pytest.approx([0.2, 0, 0.05])
+    assert state["inspectFromFront"]["camera"]["distance"] == pytest.approx(0.5)
+    assert state["inspectFromFront"]["zoom"] == 2
     assert state["fixed"]["front"] == {"right": [-1, 0, 0], "up": [0, 0, 1], "depth": [0, 1, 0]}
     assert state["fixed"]["side"] == {"right": [0, 1, 0], "up": [0, 0, 1], "depth": [1, 0, 0]}
     assert state["fixedDets"] == pytest.approx({"front": 1, "side": 1})
