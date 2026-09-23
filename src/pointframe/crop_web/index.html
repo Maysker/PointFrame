@@ -2,7 +2,7 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PointFrame Crop</title><link rel="stylesheet" href="style.css"></head>
 <body>
-  <header><h1>Point Cloud Crop</h1><div id="status">Connecting…</div></header>
+  <header><h1>Point Cloud Crop</h1><div class="headerActions"><div id="status">Connecting…</div><button id="helpButton">Info</button></div></header>
   <main>
     <section class="viewer">
       <canvas id="gl"></canvas><canvas id="overlay"></canvas>
@@ -61,6 +61,41 @@
     <h2>Existing exports</h2>
     <p id="exportDialogMessage"></p>
     <div class="dialogActions"><button id="exportNew" class="primary">Export as new version</button><button id="exportReplace" class="danger">Replace latest export</button><button id="exportCancel">Cancel</button></div>
+  </dialog>
+  <dialog id="helpDialog" aria-labelledby="helpTitle">
+    <div class="helpHeader"><h2 id="helpTitle">PointFrame</h2><button id="helpClose" aria-label="Close help">Close</button></div>
+    <div class="helpSection">
+      <h3>Controls</h3>
+      <h4>3D Inspect</h4>
+      <dl class="helpList">
+        <dt>Left drag</dt><dd>Free orbit</dd>
+        <dt>Right/Middle drag</dt><dd>Pan</dd>
+        <dt>Mouse wheel</dt><dd>Zoom</dd>
+        <dt>Double click</dt><dd>Set orbit pivot</dd>
+        <dt>Azimuth</dt><dd>Rotate around vertical axis</dd>
+        <dt>Elevation</dt><dd>Rotate above/below the scene</dd>
+        <dt>Roll</dt><dd>Rotate around the viewing axis / level the view</dd>
+      </dl>
+      <h4>Top / Draw</h4>
+      <dl class="helpList">
+        <dt>Left click</dt><dd>Add polygon vertex</dd>
+        <dt>Drag vertex</dt><dd>Move vertex</dd>
+        <dt>Click/drag edge</dt><dd>Insert vertex</dd>
+        <dt>Right click vertex</dt><dd>Delete vertex</dd>
+      </dl>
+    </div>
+    <div class="helpSection">
+      <h3>Supported formats</h3>
+      <p>Currently supported:</p>
+      <ul><li>PLY</li><li>XYZ coordinates required</li><li>RGB optional</li><li>normals optional</li></ul>
+    </div>
+    <div class="helpSection">
+      <h3>About PointFrame</h3>
+      <p><strong>PointFrame</strong><br>Version 0.1.0</p>
+      <p>Point-cloud alignment and precision cropping tool.</p>
+      <p>Processing is performed locally on your computer.</p>
+      <p>Repository:<br><a href="https://github.com/Maysker/PointFrame" target="_blank" rel="noopener noreferrer">https://github.com/Maysker/PointFrame</a></p>
+    </div>
   </dialog>
   <script src="navigation.js"></script><script src="polygon.js"></script><script src="angle-ruler.js"></script><script src="app.js"></script>
 </body></html>
