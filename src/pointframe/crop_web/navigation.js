@@ -36,6 +36,12 @@
   }
   function rotateAround(vector,axis,angle){const unit=normalizeVector(axis),cosine=Math.cos(angle),sine=Math.sin(angle),projection=dot(unit,vector)*(1-cosine),perpendicular=cross(unit,vector);return vector.map((value,index)=>value*cosine+perpendicular[index]*sine+unit[index]*projection)}
   function orthonormalBasis(viewBasis){const right=normalizeVector(viewBasis.right),up0=viewBasis.up.map((value,index)=>value-dot(viewBasis.up,right)*right[index]),up=normalizeVector(up0),depth=normalizeVector(cross(right,up));return{right,up,depth}}
+  function wrapAngle(angle){return((angle+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI}
+  function angleDelta(next,current){return wrapAngle(next-current)}
+  function rotateBasisAround(viewBasis,axis,angle){
+    if(angle===0)return viewBasis;
+    return orthonormalBasis({right:rotateAround(viewBasis.right,axis,angle),up:rotateAround(viewBasis.up,axis,angle),depth:rotateAround(viewBasis.depth,axis,angle)});
+  }
   function freeOrbitDrag(state,dx,dy,width,height){
     if(width<=0||height<=0)throw Error("Free-orbit viewport must be positive");
     let result=orthonormalBasis(state.basis);
@@ -49,6 +55,16 @@
     const elevation=Math.asin(Math.max(-1,Math.min(1,depth[2])));
     const azimuth=Math.atan2(depth[0],depth[1]);
     return{azimuth,elevation};
+  }
+  function continuousOrbitFromBasis(viewBasis,previous=null){
+    const basis=orthonormalBasis(viewBasis),depth=basis.depth,horizontal=Math.hypot(depth[0],depth[1]);
+    if(!previous)return precisionOrbitFromBasis(basis);
+    if(horizontal<1e-12)return{azimuth:wrapAngle(previous.azimuth),elevation:depth[2]>=0?Math.PI/2:-Math.PI/2};
+    const azimuth=Math.atan2(depth[0],depth[1]),elevation=Math.asin(Math.max(-1,Math.min(1,depth[2])));
+    const alternate={azimuth:wrapAngle(azimuth+Math.PI),elevation:wrapAngle(elevation>=0?Math.PI-elevation:-Math.PI-elevation)};
+    const canonical={azimuth:wrapAngle(azimuth),elevation:wrapAngle(elevation)};
+    const score=candidate=>angleDelta(candidate.azimuth,previous.azimuth)**2+angleDelta(candidate.elevation,previous.elevation)**2;
+    return score(alternate)<score(canonical)?alternate:canonical;
   }
 
   function precisionOrbitBasis(state){
@@ -108,7 +124,11 @@
     topTiltFromBasis,
     topTiltDrag,
     freeOrbitDrag,
+    wrapAngle,
+    angleDelta,
+    rotateBasisAround,
     precisionOrbitFromBasis,
+    continuousOrbitFromBasis,
     precisionOrbitBasis,
     rollFromBasis,
     inspectStateFromView,

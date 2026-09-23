@@ -14,33 +14,18 @@
         <label id="verticalLockControl"><input id="verticalLock" type="checkbox" checked> Lock vertical axis</label>
       </div>
       <div id="precisionControls" hidden>
-        <label>
-          Azimuth
-          <span id="azimuthValue">0.0°</span>
-        </label>
-        <input
-          id="azimuthRange"
-          type="range"
-          min="-180"
-          max="180"
-          step="0.1"
-          value="0"
-        >
+        <div class="angleControlRow">
+          <div class="angleLabel">Azimuth <span data-angle-value>0.0°</span></div>
+          <div class="angleRuler horizontal" id="azimuthRuler"><canvas></canvas><i aria-hidden="true"></i></div>
+        </div>
+        <div class="angleControlRow">
+          <div class="angleLabel">Roll <span data-angle-value>0.0°</span></div>
+          <div class="angleRuler horizontal" id="rollRuler"><canvas></canvas><i aria-hidden="true"></i></div>
+        </div>
       </div>
       <div id="elevationControl" hidden>
-        <label>
-          Elevation
-          <span id="elevationValue">0.0°</span>
-        </label>
-
-        <input
-          id="elevationRange"
-          type="range"
-          min="-89.9"
-          max="89.9"
-          step="0.1"
-          value="45"
-        >
+        <div class="angleLabel">Elevation <span data-angle-value>0.0°</span></div>
+        <div class="angleRuler vertical" id="elevationRuler"><canvas></canvas><i aria-hidden="true"></i></div>
       </div>
       <div id="modeBadge">Preparing view…</div>
       <pre id="orbitDebug" aria-live="polite"></pre>
@@ -76,5 +61,5 @@
     <p id="exportDialogMessage"></p>
     <div class="dialogActions"><button id="exportNew" class="primary">Export as new version</button><button id="exportReplace" class="danger">Replace latest export</button><button id="exportCancel">Cancel</button></div>
   </dialog>
-  <script src="navigation.js"></script><script src="polygon.js"></script><script src="app.js"></script>
+  <script src="navigation.js"></script><script src="polygon.js"></script><script src="angle-ruler.js"></script><script src="app.js"></script>
 </body></html>

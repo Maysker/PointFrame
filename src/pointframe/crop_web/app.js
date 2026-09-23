@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id),canvas=$("gl"),overlay=$("overlay"),ctx=
 let gl,program,posBuffer,colorBuffer,flagBuffer,xyz,positions,localCoordinates,colors,flags,meta,cropFrame;
 let polygon=[],hoverInsert=null,pointMode="all",view="top",orbitCamera=null,freeOrbitBasis=null,inspectCameraInitialized=false,inspectZoom=.9,verticalLock=true,zoom=.9,pan=[0,0],orbitTarget=[0,0,0],dragging=false,dragVertex=-1,dragAction="",last=[0,0];
 let localCenter=[0,0,0],localHalf=1,localBounds,selectedPreview=0;
+let azimuthRuler,elevationRuler,rollRuler,precisionAngles=null;
 const vertexSource=`attribute vec3 p;attribute vec3 c;attribute float f;uniform vec3 pivot;uniform vec3 viewRight;uniform vec3 viewUp;uniform vec3 viewDepth;uniform vec2 fit;uniform float zoom;uniform vec2 pan;uniform int mode;varying vec3 color;void main(){vec3 d=p-pivot;vec3 q=vec3(dot(d,viewRight),dot(d,viewUp),dot(d,viewDepth));bool hide=(mode==1&&f<.5)||(mode==2&&f>.5);gl_Position=hide?vec4(2.,2.,2.,1.):vec4(q.x*zoom*fit.x+pan.x,q.y*zoom*fit.y+pan.y,q.z*.01,1.);gl_PointSize=1.5;color=f>.5?mix(c,vec3(1.,.72,.08),.62):c;}`;
 const fragmentSource=`precision mediump float;varying vec3 color;void main(){gl_FragColor=vec4(color,1.);}`;
 function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
@@ -12,19 +13,26 @@ function attribute(name,buffer,size){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);const
 function fitScale(){const aspect=canvas.clientWidth/canvas.clientHeight;return aspect>1?[1/aspect,1]:[1,aspect]}
 function resize(){const d=devicePixelRatio||1;for(const c of[canvas,overlay]){c.width=c.clientWidth*d;c.height=c.clientHeight*d}gl.viewport(0,0,canvas.width,canvas.height);draw()}
 function viewBasis(){if(Nav.FIXED_BASES[view])return Nav.FIXED_BASES[view];return verticalLock?Nav.topTiltBasis(orbitCamera):freeOrbitBasis}
+function trackPrecisionAngles(){
+  if(view!=="inspect")return;
+  const basis=viewBasis(),orbit=Nav.continuousOrbitFromBasis(basis,precisionAngles);
+  const levelDefined=Math.hypot(basis.right[2],basis.up[2])>=1e-12;
+  const roll=levelDefined?Nav.rollFromBasis(basis):precisionAngles?.roll??0;
+  precisionAngles={...orbit,roll};
+}
 function updateOrbitDebug(){
   let camera="";
 
   if(view==="inspect"&&orbitCamera){
-    const basis=viewBasis();
-    const precision=Nav.precisionOrbitFromBasis(basis);
+    if(!precisionAngles)trackPrecisionAngles();
 
-    const azimuth=precision.azimuth*180/Math.PI;
-    const elevation=precision.elevation*180/Math.PI;
+    const azimuth=precisionAngles.azimuth*180/Math.PI;
+    const elevation=precisionAngles.elevation*180/Math.PI;
 
     camera+=verticalLock?"top-tilt\n":"free orbit\n";
     camera+=`azimuth ${azimuth.toFixed(1)}°\n`;
     camera+=`elevation ${elevation.toFixed(1)}°\n`;
+    camera+=`roll ${(precisionAngles.roll*180/Math.PI).toFixed(1)}°\n`;
     camera+=`distance ${orbitCamera.distance.toFixed(3)}\n`;
   }
 
@@ -37,15 +45,13 @@ function updateOrbitDebug(){
 function syncPrecisionControls(){
   if(view!=="inspect")return;
 
-  const precision=Nav.precisionOrbitFromBasis(viewBasis());
-  const azimuth=precision.azimuth*180/Math.PI;
-  const elevation=precision.elevation*180/Math.PI;
+  if(!precisionAngles)trackPrecisionAngles();
+  const azimuth=precisionAngles.azimuth*180/Math.PI;
+  const elevation=precisionAngles.elevation*180/Math.PI;
 
-  $("azimuthRange").value=azimuth;
-  $("azimuthValue").textContent=`${azimuth.toFixed(1)}°`;
-
-  $("elevationRange").value=elevation;
-  $("elevationValue").textContent=`${elevation.toFixed(1)}°`;
+  azimuthRuler.setValue(azimuth);
+  elevationRuler.setValue(elevation);
+  rollRuler.setValue(precisionAngles.roll*180/Math.PI);
 }
 function draw(){if(!positions)return;gl.clear(gl.COLOR_BUFFER_BIT);attribute("p",posBuffer,3);attribute("c",colorBuffer,3);attribute("f",flagBuffer,1);const pivot=view==="inspect"?orbitTarget:[0,0,0],basis=viewBasis();gl.uniform3f(gl.getUniformLocation(program,"pivot"),pivot[0],pivot[1],pivot[2]);gl.uniform3fv(gl.getUniformLocation(program,"viewRight"),basis.right);gl.uniform3fv(gl.getUniformLocation(program,"viewUp"),basis.up);gl.uniform3fv(gl.getUniformLocation(program,"viewDepth"),basis.depth);const f=fitScale();gl.uniform2f(gl.getUniformLocation(program,"fit"),f[0],f[1]);gl.uniform1f(gl.getUniformLocation(program,"zoom"),zoom);gl.uniform2f(gl.getUniformLocation(program,"pan"),pan[0],pan[1]);gl.uniform1i(gl.getUniformLocation(program,"mode"),pointMode==="all"?0:pointMode==="selected"?1:2);gl.drawArrays(gl.POINTS,0,flags.length);updateOrbitDebug();drawOverlay()}
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
@@ -79,50 +85,36 @@ function drawOverlay(){
   for(const p of polygon){const screen=uvToScreen(p);ctx.beginPath();ctx.arc(screen[0],screen[1],7*d,0,Math.PI*2);ctx.fillStyle="#fff176";ctx.fill();ctx.lineWidth=2*d;ctx.strokeStyle="#111";ctx.stroke()}
 }
 function fitCurrentView(){const orbiting=view==="inspect",target=orbiting?orbitTarget:[0,0,0],result=Nav.fitProjectedBounds(positions,flags,pointMode,target,viewBasis(),canvas.clientWidth,canvas.clientHeight);if(!result){$("message").textContent="No visible preview points to fit.";draw();return}zoom=result.zoom;if(orbiting){pan=[0,0];orbitTarget=result.target;orbitCamera={...orbitCamera,distance:1/zoom}}else pan=result.pan;draw()}
-function setView(next){const previous=view,outgoingBasis=viewBasis(),enteringInspect=next==="inspect"&&previous!=="inspect";if(previous==="inspect"&&next!=="inspect")inspectZoom=zoom;if(enteringInspect){if(!inspectCameraInitialized){const state=Nav.inspectStateFromView(outgoingBasis,pan,zoom,fitScale());orbitCamera={tiltX:0,tiltY:0,distance:state.camera.distance};freeOrbitBasis=Nav.topTiltBasis(orbitCamera);orbitTarget=state.target;pan=state.pan;zoom=state.zoom;inspectZoom=zoom;inspectCameraInitialized=true}else{pan=[0,0];zoom=inspectZoom}}view=next;hoverInsert=null;if(next==="top"){$("modeBadge").textContent="TOP / DRAW · rotation locked";$("controlsHint").textContent="Top / Draw: click to add · drag yellow vertex to edit · hover then click/drag edge to insert · right-click vertex to delete"}else if(next==="front"){$("modeBadge").textContent="FRONT · local frame";$("controlsHint").textContent="Front: right/middle drag to pan · wheel to zoom"}else if(next==="side"){$("modeBadge").textContent="SIDE · local frame";$("controlsHint").textContent="Side: right/middle drag to pan · wheel to zoom"}else{$("modeBadge").textContent="3D INSPECT · Top alignment";$("controlsHint").textContent="3D Inspect: left drag tilts from Top · right/middle drag pans · wheel zooms · double click cloud sets pivot"}document.body.classList.toggle("inspect",next==="inspect");$("precisionControls").hidden=next!=="inspect";$("elevationControl").hidden=next!=="inspect";document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===next));document.querySelectorAll(".topControl").forEach(b=>b.hidden=next!=="top");if(enteringInspect)draw();else fitCurrentView()}
+function setView(next){const previous=view,outgoingBasis=viewBasis(),enteringInspect=next==="inspect"&&previous!=="inspect";if(previous==="inspect"&&next!=="inspect")inspectZoom=zoom;if(enteringInspect){if(!inspectCameraInitialized){const state=Nav.inspectStateFromView(outgoingBasis,pan,zoom,fitScale());orbitCamera={tiltX:0,tiltY:0,distance:state.camera.distance};freeOrbitBasis=Nav.topTiltBasis(orbitCamera);orbitTarget=state.target;pan=state.pan;zoom=state.zoom;inspectZoom=zoom;inspectCameraInitialized=true}else{pan=[0,0];zoom=inspectZoom}}view=next;if(enteringInspect)trackPrecisionAngles();hoverInsert=null;if(next==="top"){$("modeBadge").textContent="TOP / DRAW · rotation locked";$("controlsHint").textContent="Top / Draw: click to add · drag yellow vertex to edit · hover then click/drag edge to insert · right-click vertex to delete"}else if(next==="front"){$("modeBadge").textContent="FRONT · local frame";$("controlsHint").textContent="Front: right/middle drag to pan · wheel to zoom"}else if(next==="side"){$("modeBadge").textContent="SIDE · local frame";$("controlsHint").textContent="Side: right/middle drag to pan · wheel to zoom"}else{$("modeBadge").textContent="3D INSPECT · Top alignment";$("controlsHint").textContent="3D Inspect: left drag tilts from Top · right/middle drag pans · wheel zooms · double click cloud sets pivot"}document.body.classList.toggle("inspect",next==="inspect");$("precisionControls").hidden=next!=="inspect";$("elevationControl").hidden=next!=="inspect";document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===next));document.querySelectorAll(".topControl").forEach(b=>b.hidden=next!=="top");if(enteringInspect)draw();else fitCurrentView()}
 function useCurrentView(){if(view!=="inspect")return;if(polygon.length&&!confirm("Changing the crop frame makes the existing outline invalid. Clear it and use this view as Top?"))return;polygon=[];const localTop=Nav.topFrameFromView(viewBasis()),old=cropFrame;const next={origin:[...old.origin],u:combine(localTop.u,old),v:combine(localTop.v,old),w:combine(localTop.w,old)};setFrame(next,true);orbitCamera={...orbitCamera,tiltX:0,tiltY:0};freeOrbitBasis=Nav.topTiltBasis(orbitCamera);setView("top");updateSelection();$("message").textContent="Crop frame set from the inspected view; +W points from the scene toward the camera."}
 function applyTopOrientation(kind){if(view!=="top")return;const oldMin=+$("wmin").value,oldMax=+$("wmax").value;if(kind==="flip"){cropFrame={origin:[...cropFrame.origin],u:cropFrame.u.map(x=>-x),v:[...cropFrame.v],w:cropFrame.w.map(x=>-x)};polygon=polygon.map(([u,v])=>[-u,v])}else{cropFrame={origin:[...cropFrame.origin],u:cropFrame.u.map(x=>-x),v:cropFrame.v.map(x=>-x),w:[...cropFrame.w]};polygon=polygon.map(([u,v])=>[-u,-v])}setFrame(cropFrame,false);const bounds=safeWBounds(cropFrame);configureHeights(bounds[0],bounds[1]);if(kind==="flip"){$("wmin").value=-oldMax;$("wmax").value=-oldMin}else{$("wmin").value=oldMin;$("wmax").value=oldMax}$("wminRange").value=$("wmin").value;$("wmaxRange").value=$("wmax").value;setView("top");updateSelection();$("message").textContent=kind==="flip"?"Top viewing side flipped; crop volume preserved.":"Top rotated 180° around the height axis; crop volume preserved."}
 canvas.addEventListener("mousedown",e=>{dragging=true;last=[e.clientX,e.clientY];dragAction="";hoverInsert=null;if(view==="top"&&e.button===0){const vertex=nearestVertex(e.offsetX,e.offsetY);if(vertex>=0){dragVertex=vertex;dragAction="vertex"}else{const insertion=edgeInsertionAt(e.offsetX,e.offsetY);if(insertion){polygon=insertion.polygon;dragVertex=insertion.dragVertex;dragAction="vertex";updateSelection()}else{polygon=Poly.appendVertex(polygon,screenToUV(e.offsetX,e.offsetY));updateSelection();dragging=false}}}else if(view==="top"&&e.button===2){const vertex=nearestVertex(e.offsetX,e.offsetY);if(vertex>=0){const result=Poly.deleteVertex(polygon,vertex);polygon=result.polygon;dragging=false;if(result.deleted){updateSelection();$("message").textContent="Vertex deleted."}else $("message").textContent="A valid polygon must retain at least three vertices."}else dragAction="pan"}else if(e.button===1||e.button===2){dragAction="pan"}else if(view==="inspect"&&e.button===0){dragAction="orbit"}else dragging=false});
 window.addEventListener("mouseup",()=>{if(dragVertex>=0)updateSelection();dragging=false;dragVertex=-1;dragAction="";hoverInsert=null;draw()});
-window.addEventListener("mousemove",e=>{if(!dragging){updateEdgeHover(e.clientX,e.clientY);return}const previous=last,dx=e.clientX-previous[0],dy=e.clientY-previous[1];last=[e.clientX,e.clientY];if(dragAction==="vertex"){const r=canvas.getBoundingClientRect();polygon=Poly.moveVertex(polygon,dragVertex,screenToUV(e.clientX-r.left,e.clientY-r.top));updateSelection()}else if(dragAction==="pan"){if(view==="inspect")orbitTarget=Nav.panTarget(orbitTarget,dx,dy,canvas.clientWidth,canvas.clientHeight,zoom,fitScale(),viewBasis());else{pan[0]+=dx/canvas.clientWidth*2;pan[1]-=dy/canvas.clientHeight*2}draw()}else if(dragAction==="orbit"){if(verticalLock){const next=Nav.topTiltDrag({...orbitCamera,target:orbitTarget},dx,dy,canvas.clientWidth,canvas.clientHeight);orbitCamera={tiltX:next.tiltX,tiltY:next.tiltY,distance:next.distance}}else{const next=Nav.freeOrbitDrag({basis:freeOrbitBasis,target:orbitTarget},dx,dy,canvas.clientWidth,canvas.clientHeight);freeOrbitBasis=next.basis}draw()}});
+window.addEventListener("mousemove",e=>{if(!dragging){updateEdgeHover(e.clientX,e.clientY);return}const previous=last,dx=e.clientX-previous[0],dy=e.clientY-previous[1];last=[e.clientX,e.clientY];if(dragAction==="vertex"){const r=canvas.getBoundingClientRect();polygon=Poly.moveVertex(polygon,dragVertex,screenToUV(e.clientX-r.left,e.clientY-r.top));updateSelection()}else if(dragAction==="pan"){if(view==="inspect")orbitTarget=Nav.panTarget(orbitTarget,dx,dy,canvas.clientWidth,canvas.clientHeight,zoom,fitScale(),viewBasis());else{pan[0]+=dx/canvas.clientWidth*2;pan[1]-=dy/canvas.clientHeight*2}draw()}else if(dragAction==="orbit"){if(verticalLock){const next=Nav.topTiltDrag({...orbitCamera,target:orbitTarget},dx,dy,canvas.clientWidth,canvas.clientHeight);orbitCamera={tiltX:next.tiltX,tiltY:next.tiltY,distance:next.distance}}else{const next=Nav.freeOrbitDrag({basis:freeOrbitBasis,target:orbitTarget},dx,dy,canvas.clientWidth,canvas.clientHeight);freeOrbitBasis=next.basis}trackPrecisionAngles();draw()}});
 canvas.addEventListener("mouseleave",()=>{if(!dragging&&hoverInsert){hoverInsert=null;draw()}});canvas.oncontextmenu=e=>e.preventDefault();canvas.addEventListener("wheel",e=>{e.preventDefault();hoverInsert=null;zoom=Math.max(.03,Math.min(100,zoom*Math.exp(-e.deltaY*.001)));if(view==="inspect")orbitCamera={...orbitCamera,distance:1/zoom};draw()},{passive:false});
 canvas.addEventListener("dblclick",e=>{if(view!=="inspect")return;const index=Nav.nearestProjectedPoint(positions,flags,pointMode,orbitTarget,viewBasis(),canvas.clientWidth,canvas.clientHeight,zoom,fitScale(),e.offsetX,e.offsetY);if(index<0){$("message").textContent="No preview point close enough to set the pivot.";return}orbitTarget=[positions[index*3],positions[index*3+1],positions[index*3+2]];pan=[0,0];draw();$("message").textContent="Orbit pivot set to the nearest preview point."});
 async function loadPreview(){const buffer=await(await fetch("/api/preview")).arrayBuffer(),dv=new DataView(buffer),n=buffer.byteLength/15;xyz=new Float32Array(n*3);colors=new Float32Array(n*3);flags=new Float32Array(n);for(let i=0;i<n;i++){const o=i*15;xyz[i*3]=dv.getFloat32(o,true);xyz[i*3+1]=dv.getFloat32(o+4,true);xyz[i*3+2]=dv.getFloat32(o+8,true);colors[i*3]=dv.getUint8(o+12)/255;colors[i*3+1]=dv.getUint8(o+13)/255;colors[i*3+2]=dv.getUint8(o+14)/255}upload(colorBuffer,colors);upload(flagBuffer,flags,gl.DYNAMIC_DRAW);$("originalCount").textContent=meta.source_point_count.toLocaleString();setFrame(meta.auto_crop_frame||identityFrame(),true,meta.auto_w_bounds||null);setView("top");updateSelection();$("message").textContent=`Auto-level ready: ${meta.auto_level_method||"trimmed PCA"}.`}
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));$("fitView").onclick=fitCurrentView;$("flipTop").onclick=()=>applyTopOrientation("flip");$("rotateTop").onclick=()=>applyTopOrientation("rotate");$("useView").onclick=useCurrentView;
 $("verticalLock").checked=verticalLock;
-$("verticalLock").onchange=e=>{const currentBasis=view==="inspect"?viewBasis():null;verticalLock=e.target.checked;if(currentBasis){if(verticalLock)orbitCamera=Nav.topTiltFromBasis(currentBasis,orbitCamera.distance,orbitTarget);else freeOrbitBasis=currentBasis;draw()}};
-$("azimuthRange").oninput=e=>{
+$("verticalLock").onchange=e=>{const currentBasis=view==="inspect"?viewBasis():null;verticalLock=e.target.checked;if(currentBasis){if(verticalLock)orbitCamera=Nav.topTiltFromBasis(currentBasis,orbitCamera.distance,orbitTarget);else freeOrbitBasis=currentBasis;trackPrecisionAngles();draw()}};
+function setPrecisionAngle(axis,degrees){
   if(view!=="inspect")return;
-
-  const current=Nav.precisionOrbitFromBasis(viewBasis());
-  const azimuth=Number(e.target.value)*Math.PI/180;
-
-  freeOrbitBasis=Nav.precisionOrbitBasis({
-    azimuth,
-    elevation:current.elevation,
-  });
-
+  const basis=viewBasis();
+  if(!precisionAngles)trackPrecisionAngles();
+  const requested=degrees*Math.PI/180;
+  const rotation=axis==="roll"?Nav.angleDelta(requested,precisionAngles.roll):Nav.angleDelta(precisionAngles[axis],requested);
+  if(rotation!==0){
+    const rotationAxis=axis==="azimuth"?[0,0,1]:axis==="elevation"?basis.right:basis.depth;
+    freeOrbitBasis=Nav.rotateBasisAround(basis,rotationAxis,rotation);
+    precisionAngles={...precisionAngles,[axis]:Nav.wrapAngle(requested)};
+  }else freeOrbitBasis=basis;
   verticalLock=false;
   $("verticalLock").checked=false;
-
   draw();
-};
-$("elevationRange").oninput=e=>{
-  if(view!=="inspect")return;
-
-  const current=Nav.precisionOrbitFromBasis(viewBasis());
-  const elevation=Number(e.target.value)*Math.PI/180;
-
-  freeOrbitBasis=Nav.precisionOrbitBasis({
-    azimuth:current.azimuth,
-    elevation,
-  });
-
-  verticalLock=false;
-  $("verticalLock").checked=false;
-
-  draw();
-};
+}
+azimuthRuler=AngleRuler.create($("azimuthRuler"),{min:-180,max:180,cyclic:true,pixelsPerDegree:4,onChange:value=>setPrecisionAngle("azimuth",value)});
+elevationRuler=AngleRuler.create($("elevationRuler"),{orientation:"vertical",min:-180,max:180,cyclic:true,pixelsPerDegree:4,onChange:value=>setPrecisionAngle("elevation",value)});
+rollRuler=AngleRuler.create($("rollRuler"),{min:-180,max:180,cyclic:true,pixelsPerDegree:4,onChange:value=>setPrecisionAngle("roll",value)});
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{pointMode=b.dataset.mode;document.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("active",x===b));draw()});
 $("undo").onclick=()=>{hoverInsert=null;polygon.pop();updateSelection()};$("clear").onclick=()=>{hoverInsert=null;polygon=[];updateSelection()};
 for(const id of["keep","boundary","wmin","wmax"])$(id).onchange=()=>{if(+$("wmin").value>+$("wmax").value)return;$("wminRange").value=$("wmin").value;$("wmaxRange").value=$("wmax").value;updateSelection()};
