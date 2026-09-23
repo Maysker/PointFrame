@@ -7,6 +7,7 @@ name = "pointframe"
 version = "0.1.0"
 description = "Local-first point-cloud alignment and precision cropping tool"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = ["numpy>=1.26"]
 

@@ -153,3 +153,7 @@ These items are planned future work and are not supported in version 0.1.0.
 ## Repository
 
 [https://github.com/Maysker/PointFrame](https://github.com/Maysker/PointFrame)
+
+## License
+
+PointFrame is released under the [MIT License](LICENSE).
