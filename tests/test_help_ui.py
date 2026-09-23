@@ -17,8 +17,9 @@ def test_viewer_help_dialog_contains_controls_formats_and_about() -> None:
         "Free orbit", "Set orbit pivot", "Rotate around vertical axis",
         "Rotate above/below the scene", "Rotate around the viewing axis / level the view",
         "Add polygon vertex", "Move vertex", "Insert vertex", "Delete vertex",
-        "PLY", "XYZ coordinates required", "RGB optional", "normals optional",
-        "Version 0.1.0", "Point-cloud alignment and precision cropping tool.",
+        "Binary PLY", "XYZ required", "RGB optional", "normals optional",
+        "Version 0.1.0", "Released: 23 September 2026",
+        "Point-cloud alignment and precision cropping tool.",
         "Processing is performed locally on your computer.",
     ):
         assert text in html
