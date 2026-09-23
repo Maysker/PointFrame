@@ -5,9 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pointframe"
 version = "0.1.0"
-description = "Local browser tool for cropping binary PLY point clouds"
+description = "Local-first point-cloud alignment and precision cropping tool"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["numpy>=1.26"]
+
+[project.urls]
+Homepage = "https://github.com/Maysker/PointFrame"
+Repository = "https://github.com/Maysker/PointFrame"
+Issues = "https://github.com/Maysker/PointFrame/issues"
 
 [project.optional-dependencies]
 desktop = ["pywebview[gtk]>=5"]
