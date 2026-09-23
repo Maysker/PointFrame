@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -55,6 +56,23 @@ def test_inspect_angles_use_shared_rulers_without_range_inputs() -> None:
     assert 'setPrecisionAngle("roll"' in app
     assert 'orientation:"vertical",min:-180,max:180,cyclic:true' in app
     assert "Nav.precisionOrbitBasis" not in app
+
+
+def test_inspect_debug_and_horizontal_rulers_share_responsive_layout() -> None:
+    web = PROJECT_ROOT / "src" / "pointframe" / "crop_web"
+    html = (web / "index.html").read_text(encoding="utf-8")
+    css = (web / "style.css").read_text(encoding="utf-8")
+
+    shared_layout = re.search(r'<div id="inspectTopOverlay">\s*<pre id="orbitDebug"[^>]*></pre>\s*<div id="precisionControls"', html)
+    assert shared_layout
+    overlay_rule = re.search(r"#inspectTopOverlay\{([^}]*)\}", css).group(1)
+    precision_rule = re.search(r"#precisionControls\{([^}]*)\}", css).group(1)
+    debug_rule = re.search(r"#orbitDebug\{([^}]*)\}", css).group(1)
+    assert "flex-wrap:wrap" in overlay_rule
+    assert "body.inspect #inspectTopOverlay{display:flex}" in css
+    assert "flex:1 1 420px" in precision_rule
+    assert "position:absolute" not in precision_rule
+    assert "position:absolute" not in debug_rule
 
 
 def test_precision_rotations_preserve_basis_and_track_full_elevation_orbit() -> None:

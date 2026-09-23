@@ -14,14 +14,17 @@
         <button id="rotateTop" class="topControl">Rotate Top 180°</button><button id="useView">Use current view as Top</button>
         <label id="verticalLockControl"><input id="verticalLock" type="checkbox" checked> Lock vertical axis</label>
       </div>
-      <div id="precisionControls" hidden>
-        <div class="angleControlRow">
-          <div class="angleLabel">Azimuth <span data-angle-value>0.0°</span></div>
-          <div class="angleRuler horizontal" id="azimuthRuler"><canvas></canvas><i aria-hidden="true"></i></div>
-        </div>
-        <div class="angleControlRow">
-          <div class="angleLabel">Roll <span data-angle-value>0.0°</span></div>
-          <div class="angleRuler horizontal" id="rollRuler"><canvas></canvas><i aria-hidden="true"></i></div>
+      <div id="inspectTopOverlay">
+        <pre id="orbitDebug" aria-live="polite"></pre>
+        <div id="precisionControls" hidden>
+          <div class="angleControlRow">
+            <div class="angleLabel">Azimuth <span data-angle-value>0.0°</span></div>
+            <div class="angleRuler horizontal" id="azimuthRuler"><canvas></canvas><i aria-hidden="true"></i></div>
+          </div>
+          <div class="angleControlRow">
+            <div class="angleLabel">Roll <span data-angle-value>0.0°</span></div>
+            <div class="angleRuler horizontal" id="rollRuler"><canvas></canvas><i aria-hidden="true"></i></div>
+          </div>
         </div>
       </div>
       <div id="elevationControl" hidden>
@@ -29,7 +32,6 @@
         <div class="angleRuler vertical" id="elevationRuler"><canvas></canvas><i aria-hidden="true"></i></div>
       </div>
       <div id="modeBadge">Preparing view…</div>
-      <pre id="orbitDebug" aria-live="polite"></pre>
       <div class="hint" id="controlsHint">Top / Draw: click to add · drag yellow vertex to edit · hover then click/drag edge to insert · right-click vertex to delete</div>
     </section>
     <aside>
