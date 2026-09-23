@@ -20,9 +20,11 @@ mkdir -p \
   "$ROOT/DEBIAN" \
   "$ROOT/opt/pointframe" \
   "$ROOT/usr/bin" \
-  "$ROOT/usr/share/applications"
+  "$ROOT/usr/share/applications" \
+  "$ROOT/usr/share/icons/hicolor"
 
 cp -a dist/PointFrame/. "$ROOT/opt/pointframe/"
+cp -a assets/icons/hicolor/. "$ROOT/usr/share/icons/hicolor/"
 
 cat > "$ROOT/usr/bin/pointframe" <<'EOF'
 #!/usr/bin/env bash
@@ -30,14 +32,15 @@ exec /opt/pointframe/PointFrame "$@"
 EOF
 chmod 755 "$ROOT/usr/bin/pointframe"
 
-cat > "$ROOT/usr/share/applications/pointframe.desktop" <<'EOF'
+cat > "$ROOT/usr/share/applications/io.github.Maysker.PointFrame.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=PointFrame
 Comment=Point-cloud alignment and precision cropping tool
 Exec=pointframe
+Icon=pointframe
 Terminal=false
-Categories=Graphics;Utility;
+Categories=Graphics;
 StartupNotify=true
 EOF
 

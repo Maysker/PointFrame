@@ -1,4 +1,10 @@
-# PointFrame
+<h1>
+  <img src="assets/icons/pointframe-icon-1024.png"
+       alt="PointFrame icon"
+       width="64"
+       align="absmiddle">
+  PointFrame
+</h1>
 
 PointFrame is a local-first point-cloud alignment and precision cropping tool.
 It provides fixed orthographic views, free 3D inspection, polygon and height
