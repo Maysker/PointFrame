@@ -23,9 +23,11 @@ def test_entry_point_uses_external_workspace_and_separate_output(tmp_path: Path,
     monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
     seen = {}
 
-    def fake_run(source_arg, workspace, host, port, target_points, open_browser, output_dir):
+    def fake_run(source_arg, workspace, host, port, target_points, open_browser, output_dir,
+                 source_picker, workspace_for_source):
         seen.update(source=source_arg, workspace=workspace, output_dir=output_dir,
-                    host=host, port=port, target_points=target_points, open_browser=open_browser)
+                    host=host, port=port, target_points=target_points, open_browser=open_browser,
+                    source_picker=source_picker, workspace_for_source=workspace_for_source)
 
     monkeypatch.setattr(cli, "run_crop_ui", fake_run)
     monkeypatch.setattr(cli, "pick_ply_file", lambda: pytest.fail("Explicit path opened the picker"))
@@ -35,6 +37,8 @@ def test_entry_point_uses_external_workspace_and_separate_output(tmp_path: Path,
     assert not seen["workspace"].is_relative_to(source_dir)
     assert seen["output_dir"] == output
     assert seen["open_browser"] is False
+    assert seen["source_picker"] is cli.pick_ply_file
+    assert seen["workspace_for_source"] is cli.default_workspace
     assert cli.default_workspace(source) == seen["workspace"]
 
 

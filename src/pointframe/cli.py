@@ -61,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         source = args.input.expanduser().resolve(strict=True)
         workspace = default_workspace(source)
         run_crop_ui(source, workspace, args.host, args.port, args.preview_points,
-                    not args.no_open, args.output_dir)
+                    not args.no_open, args.output_dir, pick_ply_file, default_workspace)
     except (OSError, ValueError, RuntimeError) as error:
         parser.error(str(error))
     return 0

@@ -114,8 +114,6 @@ class ServerSession:
 
     def open_cloud(self) -> dict[str, bool]:
         with self.open_lock:
-            if self.app is not None:
-                return {"opened": True}
             if self.source_picker is None or self.workspace_for_source is None:
                 raise RuntimeError("Point cloud picker is unavailable")
             selected = self.source_picker()
@@ -124,8 +122,9 @@ class ServerSession:
             source = selected.expanduser().resolve(strict=True)
             if source.suffix.lower() != ".ply":
                 raise ValueError("Select a .ply file")
-            self.app = CropApplication(source, self.workspace_for_source(source),
-                                       self.target_points, self.output_dir)
+            replacement = CropApplication(source, self.workspace_for_source(source),
+                                          self.target_points, self.output_dir)
+            self.app = replacement
             return {"opened": True}
 
 
