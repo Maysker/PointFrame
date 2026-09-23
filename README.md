@@ -5,8 +5,9 @@ It provides fixed orthographic views, free 3D inspection, polygon and height
 selection, and full-resolution PLY exports while leaving the source file
 unchanged.
 
-> **Product screenshot placeholder:** Add the PointFrame viewer screenshot at
-> `docs/images/pointframe-viewer.png` when an image is available.
+![PointFrame 3D Inspect](docs/images/pointframe-3d-inspect.png)
+
+*PointFrame 3D Inspect with precision Azimuth, Elevation, and Roll controls.*
 
 ## Features
 
@@ -91,6 +92,10 @@ pointframe --no-open --host 127.0.0.1 --port 8765
 - **Use current view as Top:** Set the crop frame from the inspected view.
 
 ## Crop/export workflow
+
+![PointFrame crop selection](docs/images/pointframe-crop-selection.png)
+
+*Polygon and height-based point-cloud selection in Top / Draw view.*
 
 1. Open a binary PLY point cloud and wait for preview preparation.
 2. Review alignment in Top, Front, Side, and 3D Inspect views.
