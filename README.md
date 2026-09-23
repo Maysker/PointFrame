@@ -24,7 +24,7 @@ unchanged.
 
 ## Supported formats
 
-PointFrame 0.1.0 supports **binary PLY** files with vertex properties:
+PointFrame 0.1.1 supports **binary PLY** files with vertex properties:
 
 - `x`, `y`, and `z` required.
 - `red`, `green`, and `blue` optional.
@@ -35,6 +35,24 @@ properties. Aligned exports rotate normals when present and do not create them
 when absent.
 
 ## Installation
+
+### Ubuntu 26.04 package
+
+Download the latest `.deb` from
+[GitHub Releases](https://github.com/Maysker/PointFrame/releases) and install it
+with:
+
+```sh
+sudo apt install ./pointframe_0.1.1_amd64.deb
+```
+
+Then launch PointFrame from the application menu or with:
+
+```sh
+pointframe
+```
+
+### Source installation
 
 PointFrame requires Python 3.12 or newer. From the project directory, install
 the desktop application and its GTK based PyWebView shell:
@@ -138,9 +156,9 @@ place and are not uploaded or copied through the browser. User exports are
 stored in the selected export directory, separate from the application
 workspace.
 
-## Current status: 0.1.0
+## Current status: 0.1.1
 
-Version 0.1.0 was released on 23 September 2026. It supports the local Linux
+Version 0.1.1 was released on 23 September 2026. It supports the local Linux
 desktop workflow described above.
 
 ## Roadmap
@@ -148,7 +166,7 @@ desktop workflow described above.
 - LAS and LAZ input support.
 - Installable application packaging beyond the current Python project install.
 
-These items are planned future work and are not supported in version 0.1.0.
+These items are planned future work and are not supported in version 0.1.1.
 
 ## Repository
 

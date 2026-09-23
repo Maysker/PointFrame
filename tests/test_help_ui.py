@@ -18,7 +18,7 @@ def test_viewer_help_dialog_contains_controls_formats_and_about() -> None:
         "Rotate above/below the scene", "Rotate around the viewing axis / level the view",
         "Add polygon vertex", "Move vertex", "Insert vertex", "Delete vertex",
         "Binary PLY", "XYZ required", "RGB optional", "normals optional",
-        "Version 0.1.0", "Released: 23 September 2026",
+        "Version 0.1.1", "Released: 23 September 2026",
         "Point-cloud alignment and precision cropping tool.",
         "Processing is performed locally on your computer.",
     ):
